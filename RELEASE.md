@@ -7,8 +7,7 @@ Fapilot can be released to PyPI from a clean git checkout.
 1. Confirm the distribution name in `pyproject.toml`.
 2. Update `version` in `pyproject.toml`.
 3. Update `CHANGELOG.md`.
-4. Add `project.urls` in `pyproject.toml` after the GitHub repository URL is final.
-5. Run the checks:
+4. Run the checks:
 
 ```bash
 ruff check .
@@ -28,7 +27,16 @@ git push origin main --tags
 ## PyPI release
 
 This repository includes a GitHub Actions workflow for Trusted Publishing. Add
-the matching publisher on PyPI, then publish by creating a GitHub release.
+the matching publisher on PyPI, then publish by creating a GitHub release from
+the tag.
+
+Use these values when creating the PyPI publisher:
+
+- PyPI project name: `fapilot`
+- Owner: `alihajiali`
+- Repository name: `fapilot`
+- Workflow name: `publish.yml`
+- Environment name: `pypi`
 
 For a manual upload:
 

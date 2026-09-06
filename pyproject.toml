@@ -9,8 +9,8 @@ description = "A Django-inspired async application framework built on FastAPI, T
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
-authors = [{ name = "Fapilot maintainers" }]
-maintainers = [{ name = "Fapilot maintainers" }]
+authors = [{ name = "Ali Hajiali" }]
+maintainers = [{ name = "Ali Hajiali" }]
 keywords = ["fastapi", "async", "framework", "tortoise-orm", "aerich", "django-inspired"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -39,6 +39,12 @@ dependencies = [
   "passlib[bcrypt]>=1.7,<2",
   "python-multipart>=0.0.20,<0.0.21",
 ]
+
+[project.urls]
+Homepage = "https://github.com/alihajiali/fapilot"
+Repository = "https://github.com/alihajiali/fapilot"
+Issues = "https://github.com/alihajiali/fapilot/issues"
+Changelog = "https://github.com/alihajiali/fapilot/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
