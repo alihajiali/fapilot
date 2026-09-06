@@ -1,0 +1,11 @@
+include LICENSE
+include README.md
+include CHANGELOG.md
+include SECURITY.md
+include fapilot/py.typed
+recursive-include fapilot *.py
+recursive-exclude * __pycache__
+recursive-exclude * *.py[cod]
+prune tests
+prune .github
+prune fapilot.egg-info
