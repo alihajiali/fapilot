@@ -2,6 +2,18 @@
 
 Fapilot is an opinionated, async-first backend framework built on FastAPI. It borrows Django's project organization, app registry, settings discipline, scaffolding, and management-command ergonomics while keeping FastAPI's dependency injection, OpenAPI, lifespan, and async runtime model.
 
+## Documentation
+
+Read the [complete documentation](docs/index.md), starting with the
+[installation and CRUD walkthrough](docs/getting-started.md).
+
+- [Settings reference](docs/configuration.md) and [applications](docs/applications.md)
+- [Project architectures](docs/project-structure.md) and [CLI reference](docs/cli.md)
+- [Databases and migrations](docs/databases.md)
+- [HTTP helpers](docs/http-api.md), [authentication](docs/authentication.md), and [async features](docs/async-features.md)
+- [Testing](docs/testing.md), [deployment](docs/deployment.md), and [troubleshooting](docs/troubleshooting.md)
+- [Python API reference](docs/api-reference.md) and [contributor guide](docs/contributing.md)
+
 ## Features
 
 - Django-inspired project and app scaffolding.
@@ -28,11 +40,9 @@ After installation, the `fapilot` command is available on your shell path:
 fapilot --help
 ```
 
-You can also run the CLI directly from a checkout:
-
-```bash
-python3.12 -m fapilot.cli --help
-```
+Generated projects also provide `python manage.py --help`. Run the installed
+`fapilot` command from a checkout; module execution with `python -m fapilot.cli`
+does not invoke the CLI in the current implementation.
 
 ## Quick Start
 
@@ -41,10 +51,12 @@ python3.12 -m pip install -e .
 fapilot startproject myproject
 cd myproject
 fapilot startapp users
-fapilot makemigrations
-fapilot migrate
+# Register apps.users.apps.UsersConfig in config/settings.py first.
 fapilot runserver
 ```
+
+The [walkthrough](docs/getting-started.md) adds models, schemas, and runnable routes.
+For schema changes, follow [database initialization and migrations](docs/databases.md).
 
 Core stack:
 
@@ -108,6 +120,57 @@ The generated README records the selection and explains its responsibilities.
 These are code organization scaffolds: frontend runtimes, independent service deployments,
 message brokers, and event persistence must be implemented separately.
 `startapp` continues to generate Django-style apps under `apps/`.
+
+## Multiple databases
+
+`DATABASE_URL` remains the single-database default. Use named URLs and model groups
+in `config/settings.py` to distribute models across databases:
+
+```python
+DATABASES = {
+    "default": "sqlite://db.sqlite3",
+    "analytics": "sqlite://analytics.sqlite3",
+}
+DATABASE_APPS = {
+    # Route all models in the installed app with label "users".
+    "users": {"default_connection": "default"},
+    # A separate model group can list multiple modules without an installed app.
+    "reporting": {
+        "default_connection": "analytics",
+        "models": ["apps.reports.models", "apps.metrics.models"],
+    },
+}
+```
+
+`DATABASES["default"]` takes precedence over `DATABASE_URL`; otherwise the legacy
+URL supplies the default connection. Unmapped installed apps continue to use it.
+`DATABASE_APPS` keys are Tortoise app labels. Omitting `models` uses the matching
+installed app's modules; providing `models` replaces that group's module list.
+For models within one app that need different databases, put them in separate
+modules and assign each module to one group. Do not re-export those models from a
+module discovered by another group. Model relationships use the group label, for
+example `"reporting.Report"`; keep related models on the same connection.
+Cross-database joins and atomic transactions are not provided.
+
+Both settings also support JSON environment variables and nested values such as
+`DATABASES__analytics=sqlite://analytics.sqlite3`. Explicit Python settings take
+precedence over environment values. Generated settings include commented examples.
+Unknown connections, missing model modules for new groups, and duplicate module
+assignments fail during configuration building. The `models` group is reserved for
+Aerich metadata on the default database.
+
+Target each model group when generating and applying migrations:
+
+```bash
+fapilot makemigrations --app users --name initial
+fapilot migrate --app users
+fapilot makemigrations --app reporting --name initial
+fapilot migrate --app reporting
+```
+
+These commands pass the group to Aerich, which uses its configured connection.
+The default remains `--app models`. Configure and initialize Aerich for the model
+groups before generating migrations; migration commands do not run every group automatically.
 
 ## Development
 

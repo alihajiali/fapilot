@@ -39,6 +39,9 @@ jobs:
       - name: Pytest
         run: pytest
 
+      - name: Documentation examples
+        run: python docs/check_examples.py
+
   build:
     name: Build package
     runs-on: ubuntu-latest

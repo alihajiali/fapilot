@@ -5,7 +5,7 @@ import os
 from functools import lru_cache
 from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +13,14 @@ class JWTSettings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     issuer: str = "fapilot"
+
+
+class DatabaseAppSettings(BaseModel):
+    """A model group and the named connection used for its queries and schema."""
+
+    model_config = {"extra": "forbid"}
+    default_connection: str = "default"
+    models: list[str] | None = None
 
 
 class FapilotSettings(BaseSettings):
@@ -27,6 +35,8 @@ class FapilotSettings(BaseSettings):
     SECRET_KEY: str = Field(default="change-me")
     ALLOWED_HOSTS: list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
     DATABASE_URL: str = "sqlite://db.sqlite3"
+    DATABASES: dict[str, str] = Field(default_factory=dict)
+    DATABASE_APPS: dict[str, DatabaseAppSettings] = Field(default_factory=dict)
     INSTALLED_APPS: list[str] = Field(default_factory=list)
     MIDDLEWARE: list[str] = Field(default_factory=list)
     CORS_ALLOWED_ORIGINS: list[str] = Field(default_factory=list)

@@ -36,7 +36,9 @@ ARCHITECTURE_GUIDANCE: dict[str, str] = {
     "hexagonal": "Define ports in the core and implement external integrations in adapters.",
     "onion": "Dependencies point inward from infrastructure through application to domain.",
     "component-based": "Compose pages and layouts from reusable components; isolate shared state.",
-    "microservices": "Organize service boundaries independently; add deployment and transport setup.",
+    "microservices": (
+        "Organize service boundaries independently; add deployment and transport setup."
+    ),
     "monolithic": "Run feature areas together as one application.",
     "modular-monolith": "Run one application with explicit interfaces between feature modules.",
     "event-driven": "Producers publish events through the event bus to consumers.",
