@@ -4,6 +4,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
+from fapilot.architectures import ARCHITECTURE_GUIDANCE, ARCHITECTURES
 from fapilot.db.migrations import AerichMigrationBackend
 
 
@@ -12,6 +13,11 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", required=True)
     startproject = subparsers.add_parser("startproject")
     startproject.add_argument("name")
+    startproject.add_argument(
+        "--architecture", "--structure",
+        choices=sorted(ARCHITECTURES),
+        help="Project architecture layout (default: existing Django-inspired layout).",
+    )
     startapp = subparsers.add_parser("startapp")
     startapp.add_argument("name")
     makemigrations = subparsers.add_parser("makemigrations")
@@ -23,7 +29,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "startproject":
-        start_project(args.name)
+        start_project(args.name, architecture=args.architecture)
     elif args.command == "startapp":
         start_app(args.name)
     elif args.command == "makemigrations":
@@ -37,7 +43,9 @@ def main() -> None:
         )
 
 
-def start_project(name: str) -> None:
+def start_project(name: str, architecture: str | None = None) -> None:
+    if architecture is not None and architecture not in ARCHITECTURES:
+        raise ValueError(f"Unknown architecture: {architecture}")
     root = Path(name)
     root.mkdir()
     for directory in ["config", "apps", "common", "tests"]:
@@ -66,7 +74,27 @@ def start_project(name: str) -> None:
     _write(root / ".env", ENV)
     _write(root / ".env.example", ENV)
     _write(root / ".gitignore", GITIGNORE)
-    _write(root / "README.md", PROJECT_README.format(name=name))
+    readme = PROJECT_README.format(name=name)
+    if architecture is not None:
+        for directory in ARCHITECTURES[architecture]:
+            package = root
+            for part in Path(directory).parts:
+                package /= part
+                package.mkdir(exist_ok=True)
+                if package.name != "templates":
+                    _write(package / "__init__.py", "")
+        layout = "\n".join(f"- `{directory}/`" for directory in ARCHITECTURES[architecture])
+        readme += (
+            f"\n## Architecture: {architecture}\n\n"
+            f"{ARCHITECTURE_GUIDANCE[architecture]}\n\n{layout}\n\n"
+            "These folders are organization scaffolds for application code. "
+            "Add implementations and integrations as needed; no frontend runtime, "
+            "message broker, event persistence, or service deployment is provisioned.\n\n"
+            "`config/` contains FastAPI configuration, `common/` contains framework helpers, "
+            "and `tests/` contains project tests. `fapilot startapp` continues to create "
+            "Django-style apps under `apps/`; register those apps in `INSTALLED_APPS`.\n"
+        )
+    _write(root / "README.md", readme)
     _write(root / "Dockerfile", DOCKERFILE)
     _write(root / "docker-compose.yml", COMPOSE)
     _write(root / "pyproject.toml", PROJECT_PYPROJECT.format(name=name))
