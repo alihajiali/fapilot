@@ -68,6 +68,47 @@ fapilot migrate
 fapilot runserver --host 127.0.0.1 --port 8000
 ```
 
+### Project architecture
+
+Select an architecture when creating a project:
+
+```bash
+fapilot startproject myproject --architecture clean
+fapilot startproject myproject --structure mvc
+```
+
+Omitting the option preserves the default Django-inspired layout. All selections retain
+`config/`, `apps/`, `common/`, and `tests/`, and add the following folders:
+
+| Argument | Architecture folders |
+| --- | --- |
+| `mvc` | `models/`, `views/`, `controllers/` |
+| `mvvm` | `models/`, `views/`, `viewmodels/` |
+| `mtv` | `models/`, `templates/`, `views/` |
+| `mvp` | `models/`, `views/`, `presenters/` |
+| `layered` | `presentation/`, `business/services/`, `data_access/`, `database/` |
+| `clean` | `entities/`, `use_cases/`, `interfaces/`, `infrastructure/` |
+| `hexagonal` | `core/domain/`, `core/ports/`, `adapters/inbound/`, `adapters/outbound/` |
+| `onion` | `domain/`, `application/`, `infrastructure/` |
+| `component-based` | `components/`, `pages/`, `layouts/`, `state/` |
+| `microservices` | `services/users/`, `services/orders/`, `services/payments/`, `shared/` |
+| `monolithic` | `application/users/`, `application/products/`, `application/orders/` |
+| `modular-monolith` | `modules/users/`, `modules/orders/`, `modules/payments/`, `shared/` |
+| `event-driven` | `events/`, `producers/`, `consumers/`, `event_bus/` |
+| `cqrs` | `commands/`, `queries/`, `write_model/`, `read_model/` |
+| `event-sourcing` | `events/`, `event_store/`, `aggregates/`, `projections/` |
+| `pac` | `agents/presentation/`, `agents/abstraction/`, `agents/control/` |
+| `hmvc` | `modules/main/models/`, `modules/main/views/`, `modules/main/controllers/` |
+| `viper` | `views/`, `interactors/`, `presenters/`, `entities/`, `routers/` |
+| `flux` | `actions/`, `dispatcher/`, `stores/`, `views/` |
+| `redux` | `actions/`, `reducers/`, `store/`, `selectors/`, `views/` |
+
+`layered` covers N-tier architecture; `hexagonal` covers ports and adapters.
+The generated README records the selection and explains its responsibilities.
+These are code organization scaffolds: frontend runtimes, independent service deployments,
+message brokers, and event persistence must be implemented separately.
+`startapp` continues to generate Django-style apps under `apps/`.
+
 ## Development
 
 ```bash
