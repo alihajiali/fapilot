@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import subprocess
+import sys
 from pathlib import Path
 
 from fapilot.architectures import ARCHITECTURE_GUIDANCE, ARCHITECTURES
@@ -35,6 +36,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "createsuperuser":
+        sys.path.insert(0, str(Path.cwd()))
         from fapilot.admin.management import createsuperuser
 
         createsuperuser()
