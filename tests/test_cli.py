@@ -83,3 +83,16 @@ def test_existing_project_is_preserved(tmp_path: Path, monkeypatch) -> None:
         start_project("demo", architecture="clean")
     assert (tmp_path / "demo/controllers").is_dir()
     assert not (tmp_path / "demo/use_cases").exists()
+
+
+@pytest.mark.parametrize("command, action", [("makemigrations", "migrate"), ("migrate", "upgrade")])
+@pytest.mark.parametrize("app", ["models", "reporting"])
+def test_migration_cli_selects_model_group(monkeypatch, command, action, app) -> None:
+    calls = []
+    monkeypatch.setattr("fapilot.db.migrations.subprocess.run", lambda *a, **kw: calls.append(a))
+    argv = ["fapilot", command]
+    if app != "models":
+        argv += ["--app", app]
+    monkeypatch.setattr("sys.argv", argv)
+    main()
+    assert calls == [(["aerich", "-c", "pyproject.toml", "--app", app, action],)]

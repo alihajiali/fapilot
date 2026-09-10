@@ -2,6 +2,9 @@
 
 Thanks for taking the time to improve Fapilot.
 
+See the [expanded contributor guide](docs/contributing.md) for the repository map,
+documentation checks, and release integration.
+
 ## Development setup
 
 ```bash

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from importlib import import_module
+from typing import Any
 
 from fastapi import FastAPI
 
+from fapilot.admin import AdminSite
 from fapilot.apps import AppRegistry
+from fapilot.auth.dependencies import AuthenticationManager
+from fapilot.cache import CacheHandler
 from fapilot.conf import FapilotSettings, get_settings
 from fapilot.db.tortoise import close_orm, init_orm
 from fapilot.events.dispatcher import SignalDispatcher
@@ -17,6 +21,7 @@ class Fapilot:
         self.settings = settings or get_settings()
         self.registry = AppRegistry()
         self.events = SignalDispatcher()
+        self.caches = CacheHandler(self.settings)
 
     def setup(self) -> None:
         self.registry.populate(self.settings.INSTALLED_APPS)
@@ -27,18 +32,41 @@ class Fapilot:
         @asynccontextmanager
         async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.fapilot = self
-            await init_orm(self.settings, self.registry)
-            await self.events.emit("startup", app=app)
+            app.state.cache = self.caches["default"]
             try:
-                yield
+                await init_orm(self.settings, self.registry)
+                await self.events.emit("startup", app=app)
+                try:
+                    yield
+                finally:
+                    await self.events.emit("shutdown", app=app)
             finally:
-                await self.events.emit("shutdown", app=app)
-                await close_orm()
+                try:
+                    await self.caches.close_all()
+                finally:
+                    await close_orm()
 
         app = FastAPI(debug=self.settings.DEBUG, lifespan=lifespan)
         app.state.fapilot = self
+        app.state.caches = self.caches
+        app.state.cache = self.caches["default"]
+        app.state.authentication = AuthenticationManager(self.settings)
         self._install_middleware(app)
         self._include_app_routers(app)
+        if self.settings.ADMIN_ENABLED:
+            admin_site = import_string(self.settings.ADMIN_SITE)
+            if not isinstance(admin_site, AdminSite):
+                raise TypeError("ADMIN_SITE must point to an AdminSite instance")
+            admin_site.autodiscover(
+                [config.name for config in self.registry.get_apps()], self.settings.ADMIN_MODULES
+            )
+            admin_site.mount(
+                app,
+                secret_key=self.settings.SECRET_KEY,
+                prefix=self.settings.ADMIN_URL,
+                secure_cookies=self.settings.ADMIN_SECURE_COOKIES,
+                session_seconds=self.settings.ADMIN_SESSION_SECONDS,
+            )
         return app
 
     def _install_middleware(self, app: FastAPI) -> None:
@@ -57,13 +85,12 @@ class Fapilot:
                 router = getattr(api_module, "router", None)
             if router is not None:
                 prefix = (
-                    app_config.router_prefix
-                    or f"{self.settings.API_PREFIX}/{app_config.app_label}"
+                    app_config.router_prefix or f"{self.settings.API_PREFIX}/{app_config.app_label}"
                 )
                 app.include_router(router, prefix=prefix, tags=[app_config.app_label])
 
 
-def import_string(dotted_path: str) -> Callable:
+def import_string(dotted_path: str) -> Any:
     module_path, _, attribute = dotted_path.rpartition(".")
     if not module_path:
         raise ImportError(f"{dotted_path!r} is not a dotted import path")

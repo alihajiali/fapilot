@@ -2,6 +2,7 @@ include LICENSE
 include README.md
 include CHANGELOG.md
 include SECURITY.md
+recursive-include docs *.md *.py
 include fapilot/py.typed
 recursive-include fapilot *.py
 recursive-exclude * __pycache__

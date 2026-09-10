@@ -19,3 +19,14 @@ def test_load_settings_without_module_uses_defaults() -> None:
     assert settings.API_PREFIX == "/api"
     assert settings.DEFAULT_PAGE_SIZE == 20
 
+
+
+def test_database_settings_from_environment(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DATABASES", '{"analytics":"sqlite://analytics.sqlite3"}')
+    monkeypatch.setenv("DATABASE_APPS", '{"reports":{"models":["reports.models"]}}')
+    monkeypatch.setenv("DATABASE_APPS__reports__default_connection", "analytics")
+    settings = FapilotSettings()
+    assert settings.DATABASES == {"analytics": "sqlite://analytics.sqlite3"}
+    assert settings.DATABASE_APPS["reports"].models == ["reports.models"]
+    assert settings.DATABASE_APPS["reports"].default_connection == "analytics"
