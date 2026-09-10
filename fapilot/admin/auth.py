@@ -13,8 +13,10 @@ from fapilot.admin.options import ModelAdmin
 from fapilot.admin.site import AdminSite
 
 
-def make_password(password: str) -> str:
-    if len(password) < 12:
+def make_password(password: str, *, allow_weak: bool = False) -> str:
+    if not password:
+        raise ValueError("Password is required")
+    if len(password) < 12 and not allow_weak:
         raise ValueError("Use a password with at least 12 characters")
     salt = secrets.token_hex(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 600_000).hex()

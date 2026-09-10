@@ -43,9 +43,10 @@ python manage.py runserver
 ```
 
 Open `/admin/`. The account creation command prompts for a username, email, and a
-confirmed password of at least 12 characters. It does not accept passwords as command
-arguments. From a standalone shell command, set `FAPILOT_SETTINGS_MODULE=config.settings`
-before running `fapilot createsuperuser`.
+confirmed, nonempty password. Passwords shorter than 12 characters require an explicit
+confirmation; declining cancels account creation. It does not accept passwords as command
+arguments. Run `fapilot createsuperuser` from the project directory: it loads
+`config.settings` by default. Set `FAPILOT_SETTINGS_MODULE` to use another settings module.
 
 ## Register models
 
