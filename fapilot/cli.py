@@ -28,9 +28,14 @@ def main() -> None:
     runserver = subparsers.add_parser("runserver")
     runserver.add_argument("--host", default="127.0.0.1")
     runserver.add_argument("--port", default="8000")
+    subparsers.add_parser("createsuperuser", help="Create a built-in admin staff account")
     args = parser.parse_args()
 
-    if args.command == "startproject":
+    if args.command == "createsuperuser":
+        from fapilot.admin.management import createsuperuser
+
+        createsuperuser()
+    elif args.command == "startproject":
         start_project(args.name, architecture=args.architecture)
     elif args.command == "startapp":
         start_app(args.name)
@@ -57,6 +62,7 @@ def start_project(name: str, architecture: str | None = None) -> None:
     _write(root / "config/settings.py", SETTINGS)
     _write(root / "config/database.py", DATABASE)
     _write(root / "config/urls.py", URLS)
+    _write(root / "config/admin.py", ADMIN)
     _write(root / "config/asgi.py", ASGI)
     _write(root / "config/logging.py", "LOGGING = {}\n")
     _write(root / "common/crud.py", "from fapilot.crud import CRUDRouterService\n")
@@ -144,6 +150,11 @@ LANGUAGE_CODE = "en-us"
 API_PREFIX = "/api"
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
+# Enable the admin, migrate the models group, then run fapilot createsuperuser.
+ADMIN_ENABLED = False
+ADMIN_SITE = "config.admin.site"
+ADMIN_MODULES = []  # Explicit admin modules in any architecture layout.
+ADMIN_SECURE_COOKIES = True  # False only for local development over HTTP.
 AUTH_USER_MODEL = "users.User"
 JWT_SETTINGS = FapilotSettings().JWT_SETTINGS
 LOGGING = {}
@@ -273,5 +284,20 @@ router = APIRouter()
     "permissions.py": "from fapilot.permissions import AllowAny, IsAuthenticated\n",
     "dependencies.py": "",
     "signals.py": "",
-    "admin.py": "",
+    "admin.py": """from fapilot.admin import ModelAdmin, register
+from config.admin import site
+
+# from .models import YourModel
+# @register(YourModel, site=site)
+# class YourModelAdmin(ModelAdmin):
+#     list_display = ("id",)
+#     search_fields = ()
+""",
 }
+
+
+ADMIN = """from fapilot.admin import create_staff_site
+
+# Built-in staff users and groups, or use AdminSite with your own auth callbacks.
+site = create_staff_site(title="Administration")
+"""

@@ -189,3 +189,10 @@ See [RELEASE.md](RELEASE.md) for the release checklist and PyPI publishing flow.
 ## License
 
 Fapilot is released under the MIT License. See [LICENSE](LICENSE).
+
+## Administration workspace
+
+Fapilot includes a responsive light/dark admin with `ModelAdmin` registration across
+all project architectures, staff users and groups, permissions, CRUD forms, search,
+filters, relationship editing, bulk actions, CSV exports, and audit history.
+See the [admin guide](docs/admin.md) for setup, customization, and the runnable showcase.

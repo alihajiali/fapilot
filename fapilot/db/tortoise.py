@@ -15,6 +15,8 @@ def build_tortoise_config(settings: FapilotSettings, registry: AppRegistry) -> d
     apps: dict[str, dict] = {
         "models": {"models": ["aerich.models"], "default_connection": "default"}
     }
+    if settings.ADMIN_ENABLED:
+        apps["models"]["models"].append("fapilot.admin.models")
     for app_config in registry.get_apps():
         if app_config.app_label == "models":
             raise ValueError("App label 'models' is reserved for migration metadata")

@@ -45,6 +45,12 @@ class FapilotSettings(BaseSettings):
     API_PREFIX: str = "/api"
     DEFAULT_PAGE_SIZE: int = 20
     MAX_PAGE_SIZE: int = 100
+    ADMIN_ENABLED: bool = False
+    ADMIN_URL: str = "/admin"
+    ADMIN_SITE: str = "fapilot.admin.site"
+    ADMIN_MODULES: list[str] = Field(default_factory=list)
+    ADMIN_SECURE_COOKIES: bool = True
+    ADMIN_SESSION_SECONDS: int = Field(default=3600, ge=60, le=86400)
     AUTH_USER_MODEL: str = "users.User"
     JWT_SETTINGS: JWTSettings = Field(default_factory=JWTSettings)
     LOGGING: dict[str, Any] = Field(default_factory=dict)
