@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fapilot"
-version = "0.1.1"
+version = "0.1.2"
 description = "A Django-inspired async application framework built on FastAPI, Tortoise ORM, and Aerich."
 readme = "README.md"
 requires-python = ">=3.12"
