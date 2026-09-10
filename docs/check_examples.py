@@ -66,7 +66,7 @@ def run(command: list[str], directory: Path) -> None:
     )
     # Do not inherit database URLs or app settings from the caller.
     for key in list(environment):
-        if key.startswith(("DATABASE", "FAPILOT_", "INSTALLED_APPS", "MIDDLEWARE")):
+        if key.startswith(("DATABASE", "FAPILOT_", "INSTALLED_APPS", "MIDDLEWARE", "CACHES")):
             del environment[key]
     result = subprocess.run(
         command, cwd=directory, env=environment, capture_output=True, text=True, check=False

@@ -94,8 +94,8 @@ The factory:
 On normal server startup, lifespan initializes the ORM, optionally generates schemas
 when `DEBUG=True`, and emits `startup` with `app=app`. On normal shutdown it emits
 `shutdown` and closes ORM connections. Signal receivers run sequentially and their
-exceptions propagate. A failed startup receiver or shutdown receiver can interrupt
-cleanup in the current implementation; keep these receivers short and reliable.
+exceptions propagate. Cache and ORM cleanup are protected by nested `finally` blocks, including when a
+startup/shutdown receiver fails. Keep receivers short and reliable.
 
 ## Middleware installers
 
@@ -120,3 +120,7 @@ The ORM enables Tortoise's global fallback so request tasks can access the conte
 created by the separate lifespan task. Run one active Fapilot ORM lifecycle per
 process; concurrent app instances with different database configurations are not
 supported by this integration. Sequential isolated tests should close each lifespan.
+
+Cache handlers are available through `app.state.caches` and `app.state.fapilot.caches`,
+with the default backend at `app.state.cache`. See [caching](caching.md) for lifecycle
+and configuration details.

@@ -101,3 +101,14 @@ raises `FileNotFoundError`.
 `CommandRegistry` from `fapilot.management.commands` is a standalone callable map;
 it is not connected to CLI command discovery. To expose custom commands, provide a
 separate script or extend the parser in your own integration.
+
+## createcachetable
+
+```text
+fapilot createcachetable [--cache ALIAS]
+```
+
+Loads `config.settings` and creates missing tables for every configured database
+cache, or only the selected alias. The connection comes from `OPTIONS.CONNECTION`.
+An explicit non-database alias is rejected. Existing tables and their data are preserved;
+this does not create databases or run application migrations. See [caching](caching.md).

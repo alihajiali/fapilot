@@ -1,10 +1,154 @@
-# Authentication and permissions
+# API authentication
 
 [Documentation index](index.md)
 
-Fapilot provides helper functions, not a complete authentication system. You supply
-the user model, login routes, user lookup, authorization rules, token lifecycle,
-and any refresh/revocation flow. `AUTH_USER_MODEL` is currently configuration only.
+Configure an ordered list in your settings module. Authentication is opt-in per route;
+existing public endpoints stay public. Backend instances are created when the app is built,
+and receive that application's settings.
+
+```python
+SECRET_KEY = "load-a-long-random-secret-from-your-environment"
+AUTHENTICATION_BACKENDS = [
+    {"backend": "fapilot.auth.JWTBackend", "options": {
+        "user_loader": "users.auth.load_user",
+    }},
+    {"backend": "fapilot.auth.BasicBackend", "options": {
+        "verifier": "users.auth.verify_login",
+    }},
+    {"backend": "fapilot.auth.APIKeyBackend", "options": {
+        "verifier": "users.auth.verify_api_key", "header": "X-API-Key",
+    }},
+]
+JWT_SETTINGS = {"issuer": "my-service", "audience": "my-api"}
+```
+
+A backend with no options can be specified as a dotted string. The default list is empty.
+Configuration also works through Pydantic's JSON environment settings.
+
+## Protect endpoints
+
+```python
+from typing import Annotated
+from fastapi import APIRouter, Depends, Security
+from fapilot.auth import get_current_user, optional_user
+
+router = APIRouter()
+
+@router.get("/me")
+async def me(user: Annotated[object, Depends(get_current_user)]):
+    return {"id": str(user.id)}
+
+@router.get("/reports")
+async def reports(user: Annotated[object, Security(get_current_user, scopes=["reports:read"])]):
+    return {"allowed": True}
+```
+
+Use `Depends(optional_user)` to accept anonymous requests. Supplied invalid credentials
+still produce 401. Missing credentials on protected routes produce 401 and a
+`WWW-Authenticate` challenge; missing scopes produce 403. Results are cached once per
+request and exposed as `request.state.user` and `request.state.auth`. `IsAuthenticated`
+uses the same authentication manager. Authentication runs only when these dependencies
+or permissions are invoked. Public routes without them do not parse credentials.
+
+The generic dependency enforces `Security` scopes at runtime. It does not automatically
+add backend-specific OpenAPI security schemes or Swagger Authorize controls.
+
+## Identity and credential hooks
+
+Hooks are async functions imported from dotted paths. They own database lookup, account
+status, token revocation, and provider calls; the framework does not assume a user schema.
+`AUTH_USER_MODEL` is not automatically queried by these backends.
+
+```python
+from fapilot.auth import AuthenticationResult
+
+async def load_user(request, claims):
+    # Adapt to your actual model; return None for a deleted or disabled user.
+    return await User.get_or_none(id=claims["sub"], is_active=True)
+
+async def verify_login(request, username, password):
+    user = await your_password_service.verify(username, password)
+    if user is None:
+        return None
+    return AuthenticationResult(user, frozenset({"reports:read"}))
+
+async def verify_api_key(request, token):
+    account = await your_key_store.lookup_valid_key(token)
+    if account is None:
+        return None
+    return AuthenticationResult(account, frozenset({"reports:read"}))
+```
+
+`User`, `your_password_service`, and `your_key_store` above are application-owned services.
+Use HTTPS for credentials. Store API-key digests, use constant-time comparisons where
+applicable, and rate-limit credential verification. Run blocking password verification
+in a worker thread. Hooks return `AuthenticationResult` or `None`; backend results with
+`user=None` or an object's `is_active=False` are rejected. Hook failures propagate as
+server errors instead of being silently treated as anonymous requests.
+
+JWT's optional `user_loader(request, claims)` returns the user directly. Without it,
+the authenticated user is the subject string; no database status or revocation check
+occurs. JWT scopes come from a space-separated `scope` claim.
+
+## JWT issuance and validation
+
+```python
+from fapilot.auth import create_access_token
+
+token = create_access_token(
+    str(user.id), {"scope": "reports:read"}, settings=request.app.state.fapilot.settings
+)
+```
+
+Existing calls without `settings=` use the global settings loader. Pass explicit settings
+when running multiple applications. Tokens require a nonempty subject, expiry and the
+configured issuer; audience is checked when configured. Reserved `sub`, `iss`, `exp`,
+and `aud` claims cannot be overridden during issuance. The default `change-me` key
+is rejected. Existing tokens missing the required claims will no longer validate.
+
+`JWT_SETTINGS` supports `algorithm`, `issuer`, `audience`, `access_token_expire_minutes`,
+`verification_key`, and nonnegative `leeway` (seconds). For asymmetric signing,
+`SECRET_KEY` holds the private signing key and `verification_key` the public key.
+Only the configured algorithm is accepted. Refresh tokens, logout/revocation storage,
+JWKS rotation and OAuth login redirects are application responsibilities.
+
+## Opaque tokens and custom backends
+
+`fapilot.auth.TokenBackend` accepts `verifier` and an optional `scheme` (default `Bearer`).
+Its async verifier receives `(request, token)` and returns `AuthenticationResult` or
+`None`. This supports database tokens and OAuth introspection adapters; your adapter
+must validate provider responses, expiration, audience and scopes.
+
+Backends run in settings order. The first success wins. An absent or unrelated credential
+returns `None`; a matching but invalid credential raises `AuthenticationError` and stops
+the chain. JWT and opaque Bearer backends therefore should not be chained as fallbacks
+for invalid tokens. Use separate schemes or a custom dispatcher for mixed token formats.
+
+```python
+from fapilot.auth import AuthenticationBackend, AuthenticationError, AuthenticationResult
+
+class CustomBackend(AuthenticationBackend):
+    challenge = "Custom"
+
+    async def authenticate(self, request):
+        credential = request.headers.get("X-Custom-Credential")
+        if credential is None:
+            return None
+        identity = await validate_custom_credential(credential)
+        if identity is None:
+            raise AuthenticationError(self.challenge)
+        return AuthenticationResult(identity)
+```
+
+Register its dotted path in `AUTHENTICATION_BACKENDS`. Instances are shared: never store
+request-specific state on the backend. Custom options are passed to the constructor
+alongside `settings`. Cookie/session auth, signed requests and trusted client-certificate
+identities can be implemented with this contract; cookie auth must include CSRF protection.
+For a plain FastAPI app, install `AuthenticationManager(settings)` on
+`app.state.authentication` before using the dependencies.
+
+Design references: [FastAPI security scopes](https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/)
+and [Starlette authentication backends](https://starlette.dev/authentication/).
 
 ## Password helpers
 
@@ -29,75 +173,11 @@ application environment before relying on these helpers; the short-password fail
 is not fixed by truncating the user's password. The dependency constraint is unchanged
 by this documentation update.
 
-## Tokens
-
-```python
-from fapilot.auth import create_access_token, decode_access_token
-
-token = create_access_token("123", claims={"role": "reader"})
-payload = decode_access_token(token)
-assert payload is not None
-assert payload["sub"] == "123"
-```
-
-Issuance reads cached settings and adds `sub`, `iss`, and `exp`. The default algorithm
-is HS256 and the default lifetime is 30 minutes. Additional claims are merged last,
-so they can replace even these standard claims. Only pass server-controlled claims.
-
-Decoding uses the configured secret and algorithm and returns a dictionary or `None`
-when python-jose raises `JWTError`. The helper does not pass an expected issuer to
-`jwt.decode`, require all application claims, or look up a user. If issuer/audience
-validation is required, implement and test it explicitly. Keep `SECRET_KEY` consistent
-with the settings used by all token consumers and replace the generated placeholder.
-
-## Protect an endpoint
-
-The following dependency authenticates a token, requires a subject, and populates
-request state. Extend it with a database user lookup and active-user checks for a real
-account system. Add it to your app's `api.py` or dependency module:
-
-```python
-from fastapi import Depends, HTTPException, Request
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-
-from fapilot.auth import decode_access_token
-from fapilot.permissions import IsAuthenticated
-from fapilot.permissions.base import require_permissions
-
-bearer = HTTPBearer(auto_error=False)
-
-
-async def authenticated_user(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
-):
-    payload = decode_access_token(credentials.credentials) if credentials else None
-    if payload is None or not isinstance(payload.get("sub"), str) or not payload["sub"]:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    request.state.user = {"id": payload["sub"]}
-    await require_permissions(request, IsAuthenticated())
-    return request.state.user
-
-
-# Attach to an existing APIRouter:
-# @router.get("/me")
-# async def me(user: dict = Depends(authenticated_user)):
-#     return user
-```
-
-`IsAuthenticated` only checks whether `request.state.user` is not `None`; it does
-not read the Authorization header or verify a token. `AllowAny` always passes.
-`require_permissions(request, *permissions)` awaits every supplied permission in
-order and raises HTTP 403 on the first denial. Import it from
-`fapilot.permissions.base`; it is not re-exported by `fapilot.permissions`.
 
 ## Custom permissions
 
-Implement `async has_permission(request) -> bool`. For example, a permission may
-read a role from a previously authenticated user in request state. Permission classes
-are not installed automatically when placed in `permissions.py`; invoke them from
-an explicit dependency. Object ownership and tenant checks belong in your application.
+Implement `async has_permission(request) -> bool` and invoke
+`fapilot.permissions.base.require_permissions(request, *permissions)` in a dependency.
+It checks permissions in order and raises 403 on denial. `AllowAny` always passes;
+`IsAuthenticated` resolves the configured authentication backends. Object ownership
+and tenant checks remain application responsibilities.

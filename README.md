@@ -16,6 +16,8 @@ Read the [complete documentation](docs/index.md), starting with the
 
 ## Features
 
+- Async cache backends: local memory, files, database, Redis, Memcached, and dummy caching.
+
 - Django-inspired project and app scaffolding.
 - FastAPI application factory with app registry integration.
 - Pydantic settings loader with uppercase application settings.
@@ -190,9 +192,22 @@ See [RELEASE.md](RELEASE.md) for the release checklist and PyPI publishing flow.
 
 Fapilot is released under the MIT License. See [LICENSE](LICENSE).
 
+### Configurable API authentication
+
+Configure `AUTHENTICATION_BACKENDS` with JWT, HTTP Basic, API-key, opaque-token, or
+custom async backends. Protect routes with `Depends(get_current_user)` and enforce
+scopes with `Security(get_current_user, scopes=[...])`.
+See [authentication configuration and examples](docs/authentication.md).
+
 ## Administration workspace
 
 Fapilot includes a responsive light/dark admin with `ModelAdmin` registration across
 all project architectures, staff users and groups, permissions, CRUD forms, search,
 filters, relationship editing, bulk actions, CSV exports, and audit history.
 See the [admin guide](docs/admin.md) for setup, customization, and the runnable showcase.
+
+## Caching
+
+Configure named `CACHES` and use `await request.app.state.caches["default"].get(key)`
+in endpoints. See the [cache guide](docs/caching.md) for all backend configurations,
+optional dependencies, cache-table creation, and the complete async API.

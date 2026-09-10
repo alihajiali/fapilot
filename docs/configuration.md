@@ -116,3 +116,36 @@ Passing a different settings object to `create_app()` does not replace that cach
 For consistent behavior, use the same `FAPILOT_SETTINGS_MODULE` for the process and
 the app factory. For isolated tests, patch the helper module's `get_settings` or
 set the environment and clear the cache before constructing the app.
+
+## Cache settings
+
+`CACHES` maps aliases to `CacheSettings` (`fapilot.conf.settings`); a `default` alias
+is required. It defaults to a local-memory cache. See [caching](caching.md).
+
+| Cache field | Default |
+| --- | --- |
+| `BACKEND` | `fapilot.cache.backends.locmem.LocMemCache` |
+| `LOCATION` | `fapilot-default` |
+| `TIMEOUT` | `300` seconds; `None` means no expiry |
+| `OPTIONS` | `{}`; backend-specific constructor options |
+| `KEY_PREFIX` | Empty string |
+| `VERSION` | `1` |
+| `KEY_FUNCTION` | `None`; optional callable or import path |
+
+App-local cache handlers use the settings passed to the factory. The module-level
+`cache` and `caches` convenience objects independently use `get_settings()`.
+
+## Authentication and administration settings
+
+These options configure the [authentication](authentication.md) and [admin](admin.md)
+integrations alongside caching:
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `AUTHENTICATION_BACKENDS` | `[]` | Ordered backend paths or `AuthenticationBackendSettings` entries |
+| `ADMIN_ENABLED` | `False` | Enables admin discovery, routes, and built-in model registration |
+| `ADMIN_URL` | `/admin` | Admin route prefix |
+| `ADMIN_SITE` | `fapilot.admin.site` | Import path to an `AdminSite` instance |
+| `ADMIN_MODULES` | `[]` | Additional explicit admin registration modules |
+| `ADMIN_SECURE_COOKIES` | `True` | Requires HTTPS for admin session cookies |
+| `ADMIN_SESSION_SECONDS` | `3600` | Session lifetime, constrained to 60–86400 seconds |

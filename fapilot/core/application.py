@@ -9,6 +9,8 @@ from fastapi import FastAPI
 
 from fapilot.admin import AdminSite
 from fapilot.apps import AppRegistry
+from fapilot.auth.dependencies import AuthenticationManager
+from fapilot.cache import CacheHandler
 from fapilot.conf import FapilotSettings, get_settings
 from fapilot.db.tortoise import close_orm, init_orm
 from fapilot.events.dispatcher import SignalDispatcher
@@ -19,6 +21,7 @@ class Fapilot:
         self.settings = settings or get_settings()
         self.registry = AppRegistry()
         self.events = SignalDispatcher()
+        self.caches = CacheHandler(self.settings)
 
     def setup(self) -> None:
         self.registry.populate(self.settings.INSTALLED_APPS)
@@ -29,16 +32,25 @@ class Fapilot:
         @asynccontextmanager
         async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.fapilot = self
-            await init_orm(self.settings, self.registry)
-            await self.events.emit("startup", app=app)
+            app.state.cache = self.caches["default"]
             try:
-                yield
+                await init_orm(self.settings, self.registry)
+                await self.events.emit("startup", app=app)
+                try:
+                    yield
+                finally:
+                    await self.events.emit("shutdown", app=app)
             finally:
-                await self.events.emit("shutdown", app=app)
-                await close_orm()
+                try:
+                    await self.caches.close_all()
+                finally:
+                    await close_orm()
 
         app = FastAPI(debug=self.settings.DEBUG, lifespan=lifespan)
         app.state.fapilot = self
+        app.state.caches = self.caches
+        app.state.cache = self.caches["default"]
+        app.state.authentication = AuthenticationManager(self.settings)
         self._install_middleware(app)
         self._include_app_routers(app)
         if self.settings.ADMIN_ENABLED:
@@ -73,8 +85,7 @@ class Fapilot:
                 router = getattr(api_module, "router", None)
             if router is not None:
                 prefix = (
-                    app_config.router_prefix
-                    or f"{self.settings.API_PREFIX}/{app_config.app_label}"
+                    app_config.router_prefix or f"{self.settings.API_PREFIX}/{app_config.app_label}"
                 )
                 app.include_router(router, prefix=prefix, tags=[app_config.app_label])
 

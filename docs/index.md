@@ -16,6 +16,8 @@ The package is pre-1.0; check the [changelog](../CHANGELOG.md) when upgrading.
 
 ## Build features
 
+- [Caching](caching.md): all Django built-in backend families, async operations, and cache tables.
+
 - [HTTP APIs and helpers](http-api.md): CRUD services, schemas, filtering, pagination, middleware, errors.
 - [Authentication and permissions](authentication.md): password/JWT helpers and explicit request authentication.
 - [Events, background tasks, and realtime](async-features.md): signals, tasks, SSE, and WebSockets.

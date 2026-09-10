@@ -144,3 +144,53 @@ It does not integrate with the built-in CLI.
 `fapilot.cli` exposes `main()`, `start_project(name, architecture=None)`, and
 `start_app(name)`. `fapilot.architectures.ARCHITECTURES` maps supported slugs to folder
 tuples; `ARCHITECTURE_GUIDANCE` maps them to descriptions. See [CLI](cli.md).
+
+## Cache API
+
+Import `BaseCache`, `DEFAULT_TIMEOUT`, `CacheHandler`, `cache`, and `caches` from
+`fapilot.cache`. `CacheHandler(settings=None)` resolves aliases with `handler[name]`,
+closes resources with `await close_all()`, and creates configured database-cache tables
+with `await create_tables(alias=None)`. `DefaultCacheProxy` implements the global
+`cache` reference. `CacheSettings` lives in `fapilot.conf.settings`.
+
+Backend classes are `LocMemCache`, `FileBasedCache`, `DatabaseCache`, `RedisCache`,
+`PyMemcacheCache`, `PyLibMCCache`, and `DummyCache` under `fapilot.cache.backends`.
+See [caching](caching.md) for their precise import paths, supported operations, TTL
+semantics, and limits. `DatabaseCache.create_table()` creates a missing cache table.
+`fapilot.cli.create_cache_tables(alias=None)` runs the cache-table initialization workflow.
+
+Backend implementation helpers in `fapilot.cache.backends.base` include
+`default_key_function(key, key_prefix, version)`, `import_callable(path)`,
+`serialize(value)`, and `deserialize(value)`. Custom backends normally inherit the
+serialization and key behavior from `BaseCache` rather than calling those helpers.
+
+## Authentication backend extensions
+
+See [authentication](authentication.md) for configuration and executable dependency examples.
+`AuthenticationBackendSettings` (`fapilot.conf.settings`) holds a backend path and options.
+`AuthenticationResult` carries a user, scopes, and claims; `AuthenticationError` represents
+rejected credentials. `AuthenticationBackend` defines the async `authenticate` contract.
+`JWTBackend`, `BasicBackend`, `TokenBackend`, and `APIKeyBackend` implement supported
+credential schemes. These types are re-exported by `fapilot.auth`.
+
+`AuthenticationManager` (`fapilot.auth.dependencies`) coordinates configured backends.
+`get_manager(request)` reads it from application state. `optional_user(request)` permits
+absent credentials; `get_current_user(request, security_scopes)` requires authentication
+and scopes. Internal integration helpers `authorization(request, scheme)` and
+`validate_result(result, challenge)` live in `fapilot.auth.backends`.
+
+## Administration extensions
+
+See [administration](admin.md) for setup, permissions, and registration examples.
+`AdminSite` (`fapilot.admin.site`) registers models, discovers registration modules,
+and mounts cookie-authenticated routes. `ModelAdmin` (`fapilot.admin.options`)
+provides query, presentation, persistence, and permission hooks.
+
+`fapilot.admin.models` defines `StaffUser`, `StaffGroup`, and `AdminLogEntry`.
+`fapilot.admin.auth.create_staff_site()` wires built-in staff authentication and
+registration using `StaffOnlyAdmin`, `StaffUserAdmin`, and `StaffGroupAdmin`.
+That module also supplies `make_password`, `check_password`, `authenticate`,
+`authorize`, and `change_password` for the staff-account flow.
+`fapilot.admin.management.createsuperuser()` interactively creates a staff superuser.
+Presentation helpers `convert` and `widget` live in `fapilot.admin.site`, and `page`
+in `fapilot.admin.ui`; prefer overriding `ModelAdmin` hooks for application customization.

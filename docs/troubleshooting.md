@@ -57,7 +57,7 @@ See [database workflows](databases.md) for initialization and upgrades.
 | WebSocket clients on different workers do not see broadcasts | Each hub is in-process; add external messaging for shared delivery |
 | Signal stops after one receiver | Receiver exceptions propagate and prevent later calls |
 | ORM not initialized in `AsyncTestClient` | Enter `app.router.lifespan_context(app)` explicitly |
-| ORM cleanup skipped after hook failure | Current lifecycle cleanup can be interrupted by startup/shutdown receiver errors |
+| Cache table does not exist | Run `fapilot createcachetable` against the configured connection before using DatabaseCache |
 
 ## Scope of current implementation
 
@@ -80,3 +80,7 @@ command, minimal reproduction, expected/actual behavior, and a sanitized traceba
 Do not include real secrets or customer data. Use the repository issue tracker for
 ordinary defects. Follow the [security policy](../SECURITY.md) for private vulnerability
 reporting; do not post suspected vulnerabilities in public issues.
+
+For missing optional cache clients, backend configuration, and cache isolation, see
+the [cache guide](caching.md). Network cache failures propagate unless configured
+otherwise by the client; caching is not an automatic fail-open layer.

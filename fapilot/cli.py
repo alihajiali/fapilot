@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import subprocess
 from pathlib import Path
 
@@ -25,6 +26,8 @@ def main() -> None:
     makemigrations.add_argument("--app", default="models", help="Tortoise model group to migrate")
     migrate = subparsers.add_parser("migrate")
     migrate.add_argument("--app", default="models", help="Tortoise model group to migrate")
+    createcachetable = subparsers.add_parser("createcachetable")
+    createcachetable.add_argument("--cache", help="Database cache alias (default: all)")
     runserver = subparsers.add_parser("runserver")
     runserver.add_argument("--host", default="127.0.0.1")
     runserver.add_argument("--port", default="8000")
@@ -43,11 +46,34 @@ def main() -> None:
         AerichMigrationBackend(app=args.app).makemigrations(args.name)
     elif args.command == "migrate":
         AerichMigrationBackend(app=args.app).migrate()
+    elif args.command == "createcachetable":
+        asyncio.run(create_cache_tables(args.cache))
     elif args.command == "runserver":
         subprocess.run(
             ["uvicorn", "config.asgi:app", "--host", args.host, "--port", args.port, "--reload"],
             check=True,
         )
+
+
+async def create_cache_tables(alias: str | None = None) -> None:
+    from tortoise import Tortoise
+
+    from fapilot.cache import CacheHandler
+    from fapilot.conf import load_settings
+
+    settings = load_settings("config.settings")
+    handler = CacheHandler(settings)
+    try:
+        await Tortoise.init(config={
+            "connections": {"default": settings.DATABASE_URL, **settings.DATABASES},
+            "apps": {"models": {"models": ["aerich.models"]}},
+        })
+        await handler.create_tables(alias)
+    finally:
+        try:
+            await handler.close_all()
+        finally:
+            await Tortoise.close_connections()
 
 
 def start_project(name: str, architecture: str | None = None) -> None:
@@ -142,6 +168,9 @@ DATABASE_URL = "sqlite://db.sqlite3"
 # Route an installed app, or specify model modules for a separate model group:
 # DATABASE_APPS = {"reports": {"default_connection": "analytics",
 #                              "models": ["apps.reports.models"]}}
+# Optional: named async caches; local memory is the default.
+# CACHES = {"default": {"BACKEND": "fapilot.cache.backends.locmem.LocMemCache",
+#                        "LOCATION": "myproject", "TIMEOUT": 300}}
 INSTALLED_APPS = []
 MIDDLEWARE = ["common.middleware.install_cors"]
 CORS_ALLOWED_ORIGINS = []
