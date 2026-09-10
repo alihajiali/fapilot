@@ -42,6 +42,8 @@ site = create_staff_site(title="Fapilot Studio")
 @register(Product, site=site, name="products")
 class ProductAdmin(ModelAdmin):
     verbose_name = "Products"
+    icon = "box"
+    description = "Your catalog, pricing, and inventory."
     list_display = ("id", "name", "price", "stock", "active")
     search_fields = ("name", "description")
     list_filter = ("active",)
@@ -65,6 +67,8 @@ class ProductAdmin(ModelAdmin):
 @register(Category, site=site, name="categories")
 class CategoryAdmin(ModelAdmin):
     verbose_name = "Categories"
+    icon = "folders"
+    description = "Keep your product catalog organized."
     list_display = ("id", "name")
     search_fields = ("name",)
 

@@ -71,6 +71,8 @@ async def change_password(request, old: str, new: str) -> bool:
 
 
 class StaffOnlyAdmin(ModelAdmin):
+    menu_group = "Access management"
+
     async def has_view_permission(self, request, obj=None):
         return bool(getattr(request.state, "admin_superuser", False))
 
@@ -86,6 +88,8 @@ class StaffOnlyAdmin(ModelAdmin):
 
 class StaffUserAdmin(StaffOnlyAdmin):
     verbose_name = "Staff users"
+    icon = "users"
+    description = "People with access to your workspace."
     list_display = ("id", "username", "email", "is_active", "is_superuser")
     search_fields = ("username", "email")
     list_filter = ("is_active", "is_superuser")
@@ -119,6 +123,8 @@ class StaffUserAdmin(StaffOnlyAdmin):
 
 class StaffGroupAdmin(StaffOnlyAdmin):
     verbose_name = "Staff groups"
+    icon = "shield-check"
+    description = "Roles and model permissions for your team."
     list_display = ("id", "name")
     search_fields = ("name",)
     fields = ("name", "permissions")
