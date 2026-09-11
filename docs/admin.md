@@ -298,3 +298,33 @@ categories, staff, and groups. It uses an in-memory database and loses changes o
 The registration patterns are inspired by the
 [Django ModelAdmin reference](https://docs.djangoproject.com/en/dev/ref/contrib/admin/).
 Transaction boundaries follow [Tortoise transaction behavior](https://tortoise.github.io/transactions.html).
+
+## Overview and navigation
+
+The overview now includes live record totals, model-level editing/read-only counts,
+a searchable model directory, record distribution, quick-create links, and your six
+most recent accessible record changes. Activity is drawn from the latest 100 audit
+entries belonging to the signed-in user, then checked against each model's current
+queryset and object permissions. Deleted or inaccessible records are omitted. Counts
+are refreshed on page load; they are not a historical growth or system-health metric.
+
+Pin frequently used models with the star button, then use **Pinned** to filter the
+directory. Pins and collapsed-sidebar preference are stored locally, scoped to the
+admin URL and staff identifier. They do not synchronize between browsers. Press `/`
+to focus model search, or **Ctrl/Cmd+K** to search sidebar navigation. Mobile navigation
+opens from the toolbar and closes with Escape or the backdrop. Core links remain
+available when JavaScript is disabled.
+
+Customize a model's navigation and overview presentation:
+
+```python
+class ProductAdmin(ModelAdmin):
+    icon = "box"
+    description = "Your catalog, pricing, and inventory."
+    menu_group = "Catalog"
+```
+
+`menu_group` groups sidebar links. `icon` selects from the locally bundled Lucide icon
+set; available choices include `box`, `users`, `shield-check`, `folders`, `file-text`,
+`database`, `layers`, `activity`, and `settings-2`. Unknown names safely use `box`.
+The icon source and license are included in `fapilot/admin/icons.py`; no CDN is used.

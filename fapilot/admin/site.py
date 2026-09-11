@@ -25,6 +25,7 @@ from tortoise.models import Model
 from tortoise.transactions import in_transaction
 
 from fapilot.admin import ui
+from fapilot.admin.dashboard import overview
 from fapilot.admin.models import AdminLogEntry
 from fapilot.admin.options import ModelAdmin
 
@@ -189,12 +190,27 @@ class AdminSite:
         async def render(
             request: Request, title: str, body: str, payload: dict, status: int = 200
         ) -> HTMLResponse:
-            nav = ""
+            groups = {}
             for key, admin in self._registry.items():
                 if payload and await admin.has_view_permission(request):
-                    nav += f'<a href="{base}/{key}/">{ui.e(label(admin))}</a>'
+                    active = request.url.path.startswith(f"{base}/{key}/")
+                    link = ui.nav_link(f"{base}/{key}/", label(admin), admin.icon, active)
+                    groups.setdefault(admin.menu_group, []).append(link)
+            nav = "".join(
+                f'<div class="nav-group"><div class="caption">{ui.e(group)}</div>{"".join(links)}</div>'
+                for group, links in sorted(
+                    groups.items(), key=lambda item: item[0] == "Access management"
+                )
+            )
             if payload and self.change_password:
-                nav += f'<a href="{base}/password">Change password</a>'
+                nav += '<div class="nav-group"><div class="caption">Account</div>'
+                nav += ui.nav_link(
+                    base + "/password",
+                    "Change password",
+                    "key-round",
+                    request.url.path == base + "/password",
+                )
+                nav += "</div>"
             if request.query_params.get("saved") == "1":
                 body = '<p class="notice" role="status">Your changes have been saved.</p>' + body
             response = HTMLResponse(
@@ -208,6 +224,8 @@ class AdminSite:
                     if payload
                     else "",
                     site_title=self.title,
+                    current_path=request.url.path,
+                    storage_scope=f"{base}:{payload.get('sub', '')}",
                 ),
                 status_code=status,
             )
@@ -351,24 +369,7 @@ type="password" autocomplete="current-password" required></div><button class="pr
             payload = await identity(request)
             if not payload:
                 return RedirectResponse(base + "/login", status_code=303)
-            cards = ""
-            for key, admin in self._registry.items():
-                if await admin.has_view_permission(request):
-                    count = await (await admin.get_queryset(request)).count()
-                    cards += (
-                        f'<section class="card"><h2>{ui.e(label(admin))}</h2>'
-                        f'<div class="metric">{count:,}</div><p class="muted">Total records</p>'
-                        f'<a href="{base}/{key}/">Manage records →</a></section>'
-                    )
-            body = '<h1>Workspace overview</h1><p class="muted">Your data, organized and ready to manage.</p>'
-            body += (
-                f'<div class="grid">{cards}</div>'
-                if cards
-                else (
-                    '<div class="card empty"><h2>No models available</h2>'
-                    "<p>Register a ModelAdmin or ask an administrator for access.</p></div>"
-                )
-            )
+            body = await overview(request, self._registry, base)
             return await render(request, "Overview", body, payload)
 
         async def resolve(request: Request, key: str) -> tuple[dict, ModelAdmin | None]:

@@ -26,6 +26,9 @@ class ModelAdmin:
     registry_name: str = ""
     list_per_page: int = 25
     verbose_name: str | None = None
+    icon: str = "box"
+    description: str = ""
+    menu_group: str = "Collections"
     fieldsets: tuple[tuple[str, dict[str, Any]], ...] = ()
     actions: tuple[str, ...] = ("delete_selected", "export_csv")
     export_fields: tuple[str, ...] = ()

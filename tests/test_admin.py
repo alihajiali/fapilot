@@ -434,3 +434,75 @@ def test_autodiscovery_surfaces_broken_dependencies(tmp_path, monkeypatch):
     monkeypatch.syspath_prepend(str(tmp_path))
     with pytest.raises(ModuleNotFoundError, match="dependency_that_does_not_exist"):
         AdminSite().autodiscover(["brokenapp"])
+
+
+def test_overview_metrics_shortcuts_icons_and_scoped_activity(admin_client):
+    client, _, site = admin_client
+    login(client)
+    add(client, "Visible")
+    add(client, "Hidden")
+    admin = site._registry["articles"]
+
+    async def scoped(request):
+        return Article.exclude(title="Hidden")
+
+    admin.get_queryset = scoped
+    admin.icon = "file-text"
+    admin.description = "<script>private</script>"
+    page = client.get("/admin/")
+    assert page.status_code == 200
+    assert "Managed records" in page.text
+    assert "Available models" in page.text
+    assert "Record distribution" in page.text
+    assert "Your recent activity" in page.text
+    assert "Record #1" in page.text
+    assert "Record #2" not in page.text
+    assert "&lt;script&gt;private&lt;/script&gt;" in page.text
+    assert "<script>private</script>" not in page.text
+    assert 'href="/admin/articles/add"' in page.text
+    assert 'data-pin="articles"' in page.text
+    assert 'aria-current="page"' in page.text
+    assert '<svg class="icon" aria-hidden="true"' in page.text
+
+
+def test_overview_hides_unavailable_models_and_quick_add(admin_client):
+    client, _, site = admin_client
+    login(client)
+    add(client, "Visible")
+    admin = site._registry["articles"]
+
+    async def deny(*args):
+        return False
+
+    admin.has_add_permission = deny
+    page = client.get("/admin/")
+    assert 'href="/admin/articles/add"' not in page.text
+    admin.has_view_permission = deny
+    page = client.get("/admin/")
+    assert "No models available" in page.text
+    assert "Record #1" not in page.text
+    assert 'data-model="articles"' not in page.text
+
+
+def test_overview_activity_is_personal_and_icons_are_allowlisted(admin_client):
+    from fapilot.admin.icons import icon
+
+    client, _, site = admin_client
+    login(client)
+    add(client, "Created by staff")
+    assert "Record #1" in client.get("/admin/").text
+    client.cookies.clear()
+    site.authenticate = lambda request, username, password: "other"
+    site.authorize = lambda request, identifier: True
+    token = csrf(client.get("/admin/login"))
+    page = client.post(
+        "/admin/login",
+        data={
+            "_csrf": token,
+            "username": "other",
+            "password": "password",
+        },
+    )
+    assert "Record #1" not in page.text
+    assert "A fresh start" in page.text
+    assert icon("<script>") == icon("box")
